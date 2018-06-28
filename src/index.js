@@ -43,12 +43,11 @@ var updateProperty = function(element, name, lastValue, nextValue, isSvg) {
 }
 
 var createElement = function(node, lifecycle, isSvg) {
-  var element =
-    typeof node === "string" || typeof node === "number"
-      ? document.createTextNode(node)
-      : (isSvg = isSvg || node.name === "svg")
-        ? document.createElementNS("http://www.w3.org/2000/svg", node.name)
-        : document.createElement(node.name)
+  var element = node.text
+    ? document.createTextNode(node.name)
+    : (isSvg = isSvg || node.name === "svg")
+      ? document.createElementNS("http://www.w3.org/2000/svg", node.name)
+      : document.createElement(node.name)
 
   var props = node.props
   if (props) {
@@ -67,7 +66,7 @@ var createElement = function(node, lifecycle, isSvg) {
     }
   }
 
-  return element
+  return (node.element = element)
 }
 
 var updateElement = function(
@@ -126,19 +125,19 @@ var patchElement = function(
   isSvg
 ) {
   if (nextNode === lastNode) {
-  } else if (lastNode == null || lastNode.name !== nextNode.name) {
+  } else if (lastNode && lastNode.text && nextNode.text) {
+    if (lastNode.name !== nextNode.name) {
+      element.nodeValue = nextNode.name
+    }
+  } else if (!lastNode || lastNode.name !== nextNode.name) {
     var newElement = parent.insertBefore(
       createElement(nextNode, lifecycle, isSvg),
       element
     )
 
-    if (lastNode != null) {
-      removeElement(parent, element, lastNode)
-    }
+    if (lastNode) removeElement(parent, element, lastNode)
 
     element = newElement
-  } else if (lastNode.name == null) {
-    element.nodeValue = nextNode
   } else {
     updateElement(
       element,
@@ -248,22 +247,28 @@ var patchElement = function(
       }
     }
   }
-  return element
+  return (nextNode.element = element)
 }
 
-var createNode = function(name, props, children, recycled) {
+var createTextNode = function(text, element) {
+  return createNode(text, null, null, false, element, true)
+}
+
+var createNode = function(name, props, children, recycled, element, text) {
   return {
     name: name,
     props: props,
     children: children,
-    key: props.key,
-    recycled: recycled
+    recycled: recycled,
+    element: element,
+    text: text,
+    key: props && props.key
   }
 }
 
 var recycleChild = function(element) {
   return element.nodeType === 3 // Node.TEXT_NODE
-    ? element.nodeValue
+    ? createTextNode(element.nodeValue, element)
     : recycleElement(element)
 }
 
@@ -272,7 +277,8 @@ var recycleElement = function(element) {
     element.nodeName.toLowerCase(),
     {},
     map.call(element.childNodes, recycleChild),
-    true
+    true,
+    element
   )
 }
 
@@ -312,11 +318,15 @@ export var h = function(name, props) {
         rest.push(node[length])
       }
     } else if (node != null && node !== true && node !== false) {
-      children.push(node)
+      children.push(
+        typeof node === "string" || typeof node === "number"
+          ? createTextNode(node)
+          : node
+      )
     }
   }
 
   return typeof name === "function"
     ? name(props, (props.children = children))
-    : createNode(name, props, children, false)
+    : createNode(name, props, children)
 }
