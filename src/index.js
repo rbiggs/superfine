@@ -1,6 +1,7 @@
 var DEFAULT = 0
 var RECYCLED_NODE = 1
 var TEXT_NODE = 2
+var FRAGMENT = 3
 
 var XLINK_NS = "http://www.w3.org/1999/xlink"
 var SVG_NS = "http://www.w3.org/2000/svg"
@@ -82,29 +83,40 @@ var updateProperty = function (element, name, lastValue, nextValue, isSvg) {
 }
 
 var createElement = function (node, lifecycle, isSvg) {
-  var element =
-    node.type === TEXT_NODE
-      ? document.createTextNode(node.name)
-      : (isSvg = isSvg || node.name === "svg")
-        ? document.createElementNS(SVG_NS, node.name)
-        : document.createElement(node.name)
+  if (node.type === FRAGMENT) {
+    var fragment = document.createDocumentFragment()
+    var length = node.name.length
+    for (var i = 0; i < length; i++) {
+      var element = createElement(node.name[i], lifecycle, isSvg)
+      fragment.appendChild(element)
+    }
+    node.element = fragment
+    return fragment
+  } else {
+    var element =
+      node.type === TEXT_NODE
+        ? document.createTextNode(node.name)
+        : (isSvg = isSvg || node.name === "svg")
+          ? document.createElementNS(SVG_NS, node.name)
+          : document.createElement(node.name)
 
-  var props = node.props
-  if (props.oncreate) {
-    lifecycle.push(function () {
-      props.oncreate(element)
-    })
+    var props = node.props
+    if (props.oncreate) {
+      lifecycle.push(function () {
+        props.oncreate(element)
+      })
+    }
+
+    for (var i = 0, length = node.children.length; i < length; i++) {
+      element.appendChild(createElement(node.children[i], lifecycle, isSvg))
+    }
+
+    for (var name in props) {
+      updateProperty(element, name, null, props[name], isSvg)
+    }
+
+    return (node.element = element)
   }
-
-  for (var i = 0, length = node.children.length; i < length; i++) {
-    element.appendChild(createElement(node.children[i], lifecycle, isSvg))
-  }
-
-  for (var name in props) {
-    updateProperty(element, name, null, props[name], isSvg)
-  }
-
-  return (node.element = element)
 }
 
 var updateElement = function (
@@ -147,15 +159,21 @@ var removeChildren = function (node) {
 }
 
 var removeElement = function (parent, node) {
-  var remove = function () {
+  var remove = function (node) {
     parent.removeChild(removeChildren(node))
   }
-
-  var cb = node.props && node.props.onremove
-  if (cb != null) {
-    cb(node.element, remove)
+  if (node.type === FRAGMENT) {
+    var length = node.name.length
+    for (var i = 0; i < length; i++) {
+      remove(node.name[i])
+    }
   } else {
-    remove()
+    var cb = node.props && node.props.onremove
+    if (cb != null) {
+      cb(node.element, remove)
+    } else {
+      remove(node)
+    }
   }
 }
 
@@ -440,4 +458,15 @@ export var h = function (name, props) {
   return typeof name === "function"
     ? name(props, (props.children = children))
     : createVNode(name, props, children, null, props.key, DEFAULT)
+}
+
+export var Fragment = function (props) {
+  return {
+    name: props.children,
+    props: {},
+    children: [],
+    element: null,
+    key: null,
+    type: FRAGMENT
+  }
 }
