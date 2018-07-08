@@ -249,6 +249,32 @@ let lastNode = patch(
 )
 ```
 
+### Fragment Tag
+
+The Fragment tag allows you to render a collection of sibling virtual nodes to the DOM without the necessity of a wrapper element.
+
+```jsx
+import { h, patch, Fragment } from "superfine"
+
+function FragmentTest(props) {
+  function update() {
+    frags = patch(frags, <FragmentTest data='New Stuff Here!' />, document.body)
+  }
+  return (
+    <Fragment>
+      <p class='red' key='a'>One</p>
+      <p class='blue' key='b'>Two</p>
+      <p class='green' key='c'>{props.data}</p>
+      <p>
+        <button onclick={() => update()}>Update Fragment Tag</button>
+      </p>
+    </Fragment>
+  )
+}
+
+let frags = patch(null, <FragmentTest data='Three' />, document.body)
+```
+
 ## License
 
 Superfine is MIT licensed. See [LICENSE](/LICENSE.md).
