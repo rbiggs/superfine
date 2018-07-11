@@ -1,3 +1,20 @@
+// Custom types:
+/**
+ * @typedef {Object.<string, any>} VNode
+ * @property {string | Function} name
+ * @property {Props} props
+ * @property {Children} children
+ * @property {Element} element
+ * @property {string | number | null} key
+ * @property {number} type
+ */
+/**
+ * @typedef {Object.<string, any> | {}} Props
+ */
+/**
+ * @typedef {VNode[]} Children
+ */
+
 var DEFAULT = 0
 var RECYCLED_NODE = 1
 var TEXT_NODE = 2
@@ -11,6 +28,12 @@ var EMPTY_ARRAY = []
 var map = EMPTY_ARRAY.map
 var isArray = Array.isArray
 
+/**
+ * Function to merge two objects. The properties of the second will be added to the first.
+ * @param {Object.<string, any>} a
+ * @param {Object.<string, any>} b
+ * @return {Object.<string, any>} target
+ */
 var merge = function (a, b) {
   var target = {}
 
@@ -20,10 +43,24 @@ var merge = function (a, b) {
   return target
 }
 
+/**
+ * Event proxy for inline events.
+ * @param {Event} event 
+ * @return {any} any
+ */
 var eventProxy = function (event) {
-  return event.currentTarget.events[event.type](event)
+  return event.currentTarget['events'][event.type](event)
 }
 
+/**
+ * Update the properties and attributes of a VNode based on new data.
+ * @param {Element} element 
+ * @param {string} name 
+ * @param {any} lastValue 
+ * @param {any} nextValue 
+ * @param {boolean} isSvg 
+ * @return {void} undefined
+ */
 var updateProperty = function (element, name, lastValue, nextValue, isSvg) {
   if (name === "key") {
   } else if (name === "style") {
@@ -37,9 +74,9 @@ var updateProperty = function (element, name, lastValue, nextValue, isSvg) {
     }
   } else {
     if (name[0] === "o" && name[1] === "n") {
-      if (!element.events) element.events = {}
+      if (!element['events']) element['events'] = {}
 
-      element.events[(name = name.slice(2))] = nextValue
+      element['events'][(name = name.slice(2))] = nextValue
 
       if (nextValue == null) {
         element.removeEventListener(name, eventProxy)
@@ -81,18 +118,25 @@ var updateProperty = function (element, name, lastValue, nextValue, isSvg) {
   }
 }
 
+/**
+ * Create an element, either node or text, from a VNode.
+ * @param {VNode} node 
+ * @param {any[]} lifecycle 
+ * @param {boolean} isSvg 
+ * @return {Element}
+ */
 var createElement = function (node, lifecycle, isSvg) {
   var element =
     node.type === TEXT_NODE
-      ? document.createTextNode(node.name)
+      ? document.createTextNode(/** @type{ string } */(node.name))
       : (isSvg = isSvg || node.name === "svg")
-        ? document.createElementNS(SVG_NS, node.name)
-        : document.createElement(node.name)
+        ? document.createElementNS(SVG_NS, /** @type{ string } */(node.name))
+        : document.createElement(/** @type{ string } */(node.name))
 
   var props = node.props
-  if (props.oncreate) {
+  if (props['oncreate']) {
     lifecycle.push(function () {
-      props.oncreate(element)
+      props['oncreate'](element)
     })
   }
 
@@ -101,12 +145,22 @@ var createElement = function (node, lifecycle, isSvg) {
   }
 
   for (var name in props) {
-    updateProperty(element, name, null, props[name], isSvg)
+    updateProperty(/** @type { Element } */(element), name, null, props[name], isSvg)
   }
 
-  return (node.element = element)
+  return (node.element = /** @type {Element} */(element))
 }
 
+/**
+ * 
+ * @param {Element} element 
+ * @param {Props} lastProps 
+ * @param {Props} nextProps
+ * @param {any[]} lifecycle 
+ * @param {boolean} isSvg 
+ * @param {boolean} isRecycled 
+ * @return {void} undefined
+ */
 var updateElement = function (
   element,
   lastProps,
@@ -125,7 +179,7 @@ var updateElement = function (
     }
   }
 
-  var cb = isRecycled ? nextProps.oncreate : nextProps.onupdate
+  var cb = isRecycled ? nextProps['oncreate'] : nextProps['onupdate']
   if (cb != null) {
     lifecycle.push(function () {
       cb(element, lastProps)
@@ -133,12 +187,17 @@ var updateElement = function (
   }
 }
 
+/**
+ * 
+ * @param {VNode} node 
+ * @return {Element}
+ */
 var removeChildren = function (node) {
   for (var i = 0, length = node.children.length; i < length; i++) {
     removeChildren(node.children[i])
   }
 
-  var cb = node.props.ondestroy
+  var cb = node.props['ondestroy']
   if (cb != null) {
     cb(node.element)
   }
@@ -146,12 +205,18 @@ var removeChildren = function (node) {
   return node.element
 }
 
+/**
+ * 
+ * @param {Element} parent 
+ * @param {VNode} node 
+ * @return {void} undefined
+ */
 var removeElement = function (parent, node) {
   var remove = function () {
     parent.removeChild(removeChildren(node))
   }
 
-  var cb = node.props && node.props.onremove
+  var cb = node.props && node.props['onremove']
   if (cb != null) {
     cb(node.element, remove)
   } else {
@@ -159,10 +224,22 @@ var removeElement = function (parent, node) {
   }
 }
 
+/**
+ * 
+ * @param {VNode} node
+ * @return {string | number | null} 
+ */
 var getKey = function (node) {
   return node == null ? null : node.key
 }
 
+/**
+ * 
+ * @param {VNode[]} children 
+ * @param {number} start 
+ * @param {number} end 
+ * @return {Object.<string, any>} Object.<string, any>
+ */
 var createKeyMap = function (children, start, end) {
   var out = {}
   var key
@@ -177,6 +254,16 @@ var createKeyMap = function (children, start, end) {
   return out
 }
 
+/**
+ * 
+ * @param {Element} parent 
+ * @param {Element} element 
+ * @param {VNode} lastNode 
+ * @param {VNode} nextNode
+ * @param {any[]} lifecycle 
+ * @param {boolean} [isSvg] 
+ * @return {VNode}
+ */
 var patchElement = function (
   parent,
   element,
@@ -192,7 +279,7 @@ var patchElement = function (
     nextNode.type === TEXT_NODE
   ) {
     if (lastNode.name !== nextNode.name) {
-      element.nodeValue = nextNode.name
+      element.nodeValue = /** @type {string} */(nextNode.name)
     }
   } else if (lastNode == null || lastNode.name !== nextNode.name) {
     var newElement = parent.insertBefore(
@@ -362,9 +449,17 @@ var patchElement = function (
     }
   }
 
-  return (nextNode.element = element)
+  return (nextNode.element = /** @type {any} */(element))
 }
-
+/**
+ * @param {string | Function} name 
+ * @param {Props} props 
+ * @param {Children} children 
+ * @param {Element} element 
+ * @param {string | number | null} key 
+ * @param {number} type 
+ * @return {VNode} VNode
+ */
 var createVNode = function (name, props, children, element, key, type) {
   return {
     name: name,
@@ -376,16 +471,32 @@ var createVNode = function (name, props, children, element, key, type) {
   }
 }
 
+/**
+ * 
+ * @param {string} text 
+ * @param {Element} [element] 
+ * @return {VNode} VNode
+ */
 var createTextVNode = function (text, element) {
   return createVNode(text, EMPTY_OBJECT, EMPTY_ARRAY, element, null, TEXT_NODE)
 }
 
+/**
+ * 
+ * @param {Element} element 
+ * @return {VNode}
+ */
 var recycleChild = function (element) {
   return element.nodeType === 3 // Node.TEXT_NODE
     ? createTextVNode(element.nodeValue, element)
     : recycleElement(element)
 }
 
+/**
+ * 
+ * @param {Element} element 
+ * @return {VNode} VNode
+ */
 var recycleElement = function (element) {
   return createVNode(
     element.nodeName.toLowerCase(),
@@ -397,10 +508,22 @@ var recycleElement = function (element) {
   )
 }
 
+/**
+ * 
+ * @param {Element} container 
+ * @return {VNode} VNode
+ */
 export var recycle = function (container) {
   return recycleElement(container.children[0])
 }
 
+/**
+ * 
+ * @param {VNode} lastNode 
+ * @param {VNode} nextNode
+ * @param {Element} container 
+ * @return {VNode} VNode
+ */
 export var patch = function (lastNode, nextNode, container) {
   var lifecycle = []
 
@@ -411,6 +534,12 @@ export var patch = function (lastNode, nextNode, container) {
   return nextNode
 }
 
+/**
+ * 
+ * @param {string | Function} name 
+ * @param {Object.<string, any>} props 
+ * @return {VNode}
+ */
 export var h = function (name, props) {
   var node
   var rest = []
