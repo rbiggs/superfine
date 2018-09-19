@@ -401,10 +401,16 @@ export var recycle = function (container) {
   return recycleElement(container.children[0])
 }
 
-export var patch = function (lastNode, nextNode, container) {
+export var patch = function (nextNode, container, lastNode) {
   var lifecycle = []
 
-  patchElement(container, container.children[0], lastNode, nextNode, lifecycle)
+  if (!lastNode) {
+    var element = createElement(nextNode, lifecycle)
+    container.appendChild(element)
+    nextNode.element = element
+  } else {
+    patchElement(container, lastNode.element, lastNode, nextNode, lifecycle)
+  }
 
   while (lifecycle.length > 0) lifecycle.pop()()
 

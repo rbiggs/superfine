@@ -7,7 +7,7 @@ beforeEach(() => {
 expect.extend({
   toMatchDOM(nodes, results) {
     nodes.reduce((lastNode, nextNode, i) => {
-      const node = patch(lastNode, nextNode, document.body)
+      const node = patch(nextNode, document.body, lastNode)
       expect(document.body.innerHTML).toBe(results[i].replace(/\s{2,}/g, ""))
       return node
     }, null)
@@ -61,7 +61,7 @@ test("name as a function (JSX component syntax)", () => {
 test("skip equal nodes", () => {
   const node = div(["foo"])
 
-  patch(node, node, document.body)
+  patch(node, document.body, node)
 
   expect(document.body.innerHTML).toBe("")
 })
@@ -109,7 +109,6 @@ test("input list attribute", () => {
 
 test("event handlers", done => {
   patch(
-    null,
     div({
       onclick: () => done(),
       oncreate: el => el.dispatchEvent(new Event("click"))
@@ -183,7 +182,7 @@ test("svg", () => {
       svg({ id: state, viewBox: "0 0 10 10" }, [h(state)])
     ])
 
-  let node = patch(null, view("bar"), document.body)
+  let node = patch(view("bar"), document.body)
 
   const foo = document.getElementById("foo")
   const bar = document.getElementById("bar")
@@ -193,7 +192,7 @@ test("svg", () => {
   expect(bar.getAttribute("viewBox")).toBe("0 0 10 10")
   expectDeepNS(bar, SVG_NS)
 
-  patch(node, view("baz"), document.body)
+  patch(view("baz"), document.body, node)
 
   const baz = document.getElementById("baz")
   expect(baz.namespaceURI).toBe(SVG_NS)
@@ -204,7 +203,6 @@ test("xlink:href", () => {
   const NS_XLINK = "http://www.w3.org/1999/xlink"
 
   let lastNode = patch(
-    null,
     svg({ viewBox: "0 0 10 10" }, [
       h("use", { id: "use", "xlink:href": "about:blank" })
     ]),
@@ -215,9 +213,9 @@ test("xlink:href", () => {
   expect(use.getAttributeNS(NS_XLINK, "href")).toBe("about:blank")
 
   patch(
-    lastNode,
     svg({ viewBox: "0 0 10 10" }, [h("use", { id: "use" })]),
-    document.body
+    document.body,
+    lastNode
   )
 
   expect(use.getAttributeNS(NS_XLINK, "href")).toBe(null)
@@ -225,7 +223,6 @@ test("xlink:href", () => {
 
 test("oncreate", () => {
   patch(
-    null,
     div(
       {
         oncreate: el => {
@@ -253,8 +250,8 @@ test("onupdate", done => {
       state
     )
 
-  let node = patch(node, view("foo"), document.body)
-  patch(node, view("bar"), document.body)
+  let node = patch(view("foo"), document.body, node)
+  patch(view("bar"), document.body, node)
 })
 
 test("onremove", done => {
@@ -272,8 +269,8 @@ test("onremove", done => {
         ])
       : h("ul", {}, [h("li")])
 
-  let node = patch(null, view(true), document.body)
-  patch(node, view(false), document.body)
+  let node = patch(view(true), document.body)
+  patch(view(false), document.body, node)
 })
 
 test("ondestroy", done => {
@@ -297,8 +294,8 @@ test("ondestroy", done => {
         ])
       : ul([li()])
 
-  let node = patch(null, view(true), document.body)
-  patch(node, view(false), document.body)
+  let node = patch(view(true), document.body)
+  patch(view(false), document.body, node)
 })
 
 test("onremove/ondestroy", done => {
@@ -322,8 +319,8 @@ test("onremove/ondestroy", done => {
         ])
       : ul([li()])
 
-  let node = patch(node, view(true), document.body)
-  patch(node, view(false), document.body)
+  let node = patch(view(true), document.body, node)
+  patch(view(false), document.body, node)
 })
 
 test("event bubbling", done => {
@@ -354,8 +351,8 @@ test("event bubbling", done => {
       ]
     )
 
-  let node = patch(node, view(), document.body)
-  patch(node, view(), document.body)
+  let node = patch(view(), document.body, node)
+  patch(view(), document.body, node)
 })
 
 test("recycling", done => {
@@ -364,7 +361,6 @@ test("recycling", done => {
   container.innerHTML = `<div><p id="foo">Foo</p></div>`
 
   patch(
-    recycle(container),
     h("div", {}, [
       h("p", {
         key: "foo",
@@ -374,7 +370,8 @@ test("recycling", done => {
         }
       })
     ]),
-    container
+    container,
+    recycle(container)
   )
 })
 

@@ -35,7 +35,7 @@ const view = count =>
   ])
 
 const app = (view, container, node) => state => {
-  node = patch(node, view(state), container)
+  node = patch(view(state), container, node)
 }
 
 const render = app(view, document.body)
@@ -68,7 +68,7 @@ const view = state =>
   ])
 
 const app = (view, container, node) => state => {
-  node = patch(node, view(state), container)
+  node = patch(view(state), container, node)
 }
 
 const render = app(view, document.body)
@@ -85,7 +85,7 @@ import { h, patch, recycle } from "superfine"
 
 const container = document.body
 
-let lastNode = patch(recycle(container), nextNode, container)
+let lastNode = patch(nextNode, container, recycle(container))
 ```
 
 ## Styles
@@ -243,7 +243,6 @@ const ClickMe = (props, children) => (
 )
 
 let lastNode = patch(
-  null,
   <ClickMe url="/">Click Here!</ClickMe>,
   document.body
 )
